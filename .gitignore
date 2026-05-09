@@ -1,0 +1,30 @@
+# Entornos Virtuales
+venv/
+env/
+.env
+
+# Caché y compilados de Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Frontend React (Vite)
+frontend/node_modules/
+frontend/dist/
+frontend/.eslintcache
+
+# Archivos de datos locales y logs
+*.log
+*.sqlite3
+
+# Empaquetado nativo (PyInstaller / Executables)
+build/
+dist/
+*.spec
+
+# SO y Editores
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

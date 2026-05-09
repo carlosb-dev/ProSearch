@@ -1,0 +1,64 @@
+@import "tailwindcss";
+
+@theme {
+  --color-glass-bg: rgba(30, 30, 35, 0.6);
+  --color-glass-border: rgba(255, 255, 255, 0.08);
+  --color-glass-highlight: rgba(255, 255, 255, 0.12);
+  --color-accent: #6366f1; /* Indigo 500 */
+  --color-accent-hover: #4f46e5; /* Indigo 600 */
+  --color-dark-bg: #0f0f11;
+  --color-dark-surface: #18181b;
+}
+
+@layer utilities {
+  .glass-panel {
+    @apply bg-glass-bg backdrop-blur-xl border border-glass-border shadow-2xl;
+  }
+  
+  .glass-button {
+    @apply bg-glass-highlight hover:bg-white/20 border border-glass-border transition-all duration-200 active:scale-95;
+  }
+  
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400;
+  }
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: transparent;
+  color: #f4f4f5; /* Zinc 100 */
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  overflow: hidden; /* App should act like a desktop widget */
+}
+
+/* Base styles for PyWebView to ensure it can be transparent */
+html {
+  background-color: transparent;
+}
+
+#root {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  width: 100vw;
+  background-color: #18181b;
+}
+
+/* Custom Scrollbar for dark theme */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
