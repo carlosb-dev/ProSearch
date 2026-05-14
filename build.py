@@ -45,6 +45,7 @@ def build_executable():
         'run.py',
         '--name=ProSearch',
         '--windowed',         # Correr oculto, sin consola
+        '--onefile',          # Empaquetar todo en un único .exe
         '--noconfirm',        # Sobrescribir output dir si existe
         '--clean',            # Limpiar caché de PyInstaller
         '--icon=assets/icon.ico',  # Icono de la app

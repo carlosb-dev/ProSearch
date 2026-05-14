@@ -114,6 +114,9 @@ async def search_node(state : ResearchState):
     urls = []
     seen_urls = set()
     for response in responses:
+        if isinstance(response, dict) and 'error' in response:
+            print(f"[Error Tavily] {response['error']}")
+            
         for r in response.get('results', []):
             if r['url'] not in seen_urls:
                 seen_urls.add(r['url'])

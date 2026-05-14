@@ -302,9 +302,11 @@ class Api:
                 config = load_config()
                 tavily_key = config.get("tavilyApiKey")
                 if tavily_key:
-                    os.environ["TAVILY_API_KEY"] = tavily_key
+                    os.environ["TAVILY_API_KEY"] = tavily_key.strip('\"\'')
                     
                 llm_api_key = config.get("llmApiKey", "local-key")
+                if isinstance(llm_api_key, str):
+                    llm_api_key = llm_api_key.strip('\"\'')
 
                 result = asyncio.run(run_agent_api(query, depth, llm_url, model_name, llm_api_key))
                 
