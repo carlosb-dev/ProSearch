@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { Search, Settings, Clock, Link as LinkIcon, Cpu, Key, Upload, Save, Check } from 'lucide-react'
+import { Search, Settings, Clock, Link as LinkIcon, Cpu, Key, Upload, Save, Check, Keyboard } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 
 export default function SearchInput({ onSubmit, onOpenHistory, onToggleSettings, onHistoryImported }) {
@@ -10,6 +10,7 @@ export default function SearchInput({ onSubmit, onOpenHistory, onToggleSettings,
   const [modelName, setModelName] = useState('')
   const [llmApiKey, setLlmApiKey] = useState('')
   const [tavilyApiKey, setTavilyApiKey] = useState('')
+  const [hotkey, setHotkey] = useState('alt+space')
   const [isSaving, setIsSaving] = useState(false)
   const [saveSuccess, setSaveSuccess] = useState(false)
   const inputRef = useRef(null)
@@ -28,6 +29,7 @@ export default function SearchInput({ onSubmit, onOpenHistory, onToggleSettings,
           if (data.modelName) setModelName(data.modelName)
           if (data.llmApiKey !== undefined) setLlmApiKey(data.llmApiKey)
           if (data.tavilyApiKey !== undefined) setTavilyApiKey(data.tavilyApiKey)
+          if (data.hotkey) setHotkey(data.hotkey)
         } catch (err) {
           console.error("Error loading config", err)
         }
@@ -49,7 +51,7 @@ export default function SearchInput({ onSubmit, onOpenHistory, onToggleSettings,
     setIsSaving(true)
     if (window.pywebview && window.pywebview.api) {
       try {
-        await window.pywebview.api.save_config({ depth, llmUrl, modelName, llmApiKey, tavilyApiKey })
+        await window.pywebview.api.save_config({ depth, llmUrl, modelName, llmApiKey, tavilyApiKey, hotkey })
         setSaveSuccess(true)
         setTimeout(() => setSaveSuccess(false), 2000)
       } catch (err) {
@@ -222,6 +224,19 @@ export default function SearchInput({ onSubmit, onOpenHistory, onToggleSettings,
                       onChange={(e) => setTavilyApiKey(e.target.value)}
                       className="bg-black/30 border border-glass-border rounded-lg px-3 py-1.5 text-sm text-zinc-200 outline-none focus:border-indigo-500/50 transition-colors"
                       placeholder="tvly-..."
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs text-zinc-400 flex items-center gap-1.5">
+                      <Keyboard size={12} />
+                      Atajo de Teclado
+                    </label>
+                    <input 
+                      type="text" 
+                      value={hotkey}
+                      onChange={(e) => setHotkey(e.target.value)}
+                      className="bg-black/30 border border-glass-border rounded-lg px-3 py-1.5 text-sm text-zinc-200 outline-none focus:border-indigo-500/50 transition-colors"
+                      placeholder="alt+space"
                     />
                   </div>
                 </div>

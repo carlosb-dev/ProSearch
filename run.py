@@ -1,9 +1,24 @@
 import os
 import sys
+
+if sys.platform == 'win32':
+    if sys.stdout is not None:
+        sys.stdout.reconfigure(encoding='utf-8')
+    if sys.stderr is not None:
+        sys.stderr.reconfigure(encoding='utf-8')
+
 import json
 import asyncio
 import datetime
+# pyrefly: ignore [missing-import]
 import webview
+# pyrefly: ignore [missing-import]
+import pystray
+# pyrefly: ignore [missing-import]
+import keyboard
+import threading
+# pyrefly: ignore [missing-import]
+from PIL import Image
 from core.security import encrypt_config, decrypt_config
 from research_agent import run_agent_api
 
@@ -40,7 +55,8 @@ def load_config():
         "llmUrl": "http://localhost:1234/v1",
         "modelName": "google/gemma-4-e4b",
         "tavilyApiKey": "",
-        "llmApiKey": ""
+        "llmApiKey": "",
+        "hotkey": "alt+space"
     }
 
 def save_config(config):
@@ -70,6 +86,115 @@ def save_history(history):
     except Exception as e:
         return {"success": False, "error": str(e)}
 
+is_window_hidden = False
+
+def force_foreground():
+    import ctypes
+    if sys.platform == 'win32':
+        try:
+            user32 = ctypes.windll.user32
+            hwnd = user32.FindWindowW(None, "ProSearch")
+            if hwnd:
+                user32.SetWindowPos(hwnd, -1, 0, 0, 0, 0, 0x0043)
+                fg_hwnd = user32.GetForegroundWindow()
+                if fg_hwnd and fg_hwnd != hwnd:
+                    fg_thread = user32.GetWindowThreadProcessId(fg_hwnd, None)
+                    current_thread = ctypes.windll.kernel32.GetCurrentThreadId()
+                    if fg_thread != current_thread:
+                        user32.AttachThreadInput(current_thread, fg_thread, True)
+                        user32.SetForegroundWindow(hwnd)
+                        user32.SetFocus(hwnd)
+                        user32.AttachThreadInput(current_thread, fg_thread, False)
+                    else:
+                        user32.SetForegroundWindow(hwnd)
+                        user32.SetFocus(hwnd)
+                else:
+                    user32.SetForegroundWindow(hwnd)
+                    user32.SetFocus(hwnd)
+        except Exception as e:
+            print("Foreground error:", e)
+
+def show_window_from_tray(icon, item):
+    global is_window_hidden
+    if len(webview.windows) > 0:
+        webview.windows[0].show()
+        force_foreground()
+        is_window_hidden = False
+
+def exit_app_from_tray(icon, item):
+    icon.stop()
+    if len(webview.windows) > 0:
+        webview.windows[0].destroy()
+    os._exit(0)
+
+def setup_tray():
+    try:
+        icon_path = os.path.join(os.path.dirname(__file__), 'assets', 'icon.png')
+        if os.path.exists(icon_path):
+            image = Image.open(icon_path)
+        else:
+            image = Image.new('RGB', (64, 64), color=(73, 109, 137))
+
+        menu = pystray.Menu(
+            pystray.MenuItem('Mostrar ProSearch', show_window_from_tray, default=True),
+            pystray.MenuItem('Salir', exit_app_from_tray)
+        )
+        tray_icon = pystray.Icon("ProSearch", image, "ProSearch", menu)
+        tray_icon.run()
+    except Exception as e:
+        print(f"Error en tray: {e}")
+
+current_hotkey = None
+
+def update_hotkey(new_hotkey):
+    global current_hotkey
+    if current_hotkey:
+        try:
+            keyboard.remove_hotkey(current_hotkey)
+        except Exception:
+            pass
+    if new_hotkey:
+        try:
+            keyboard.add_hotkey(new_hotkey, toggle_window)
+            current_hotkey = new_hotkey
+        except Exception as e:
+            print(f"Error register hotkey: {e}")
+
+def toggle_window():
+    global is_window_hidden
+    if len(webview.windows) > 0:
+        window = webview.windows[0]
+        if is_window_hidden:
+            window.show()
+            force_foreground()
+            is_window_hidden = False
+        else:
+            window.hide()
+            is_window_hidden = True
+
+def on_closing():
+    global is_window_hidden
+    if len(webview.windows) > 0:
+        webview.windows[0].hide()
+        is_window_hidden = True
+    return False
+
+def on_shown():
+    import ctypes
+    if sys.platform == 'win32':
+        try:
+            hwnd = ctypes.windll.user32.FindWindowW(None, "ProSearch")
+            if hwnd:
+                GWL_EXSTYLE = -20
+                WS_EX_APPWINDOW = 0x00040000
+                WS_EX_TOOLWINDOW = 0x00000080
+                ex_style = ctypes.windll.user32.GetWindowLongW(hwnd, GWL_EXSTYLE)
+                ctypes.windll.user32.SetWindowLongW(hwnd, GWL_EXSTYLE, (ex_style & ~WS_EX_APPWINDOW) | WS_EX_TOOLWINDOW)
+                # SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED
+                ctypes.windll.user32.SetWindowPos(hwnd, 0, 0, 0, 0, 0, 0x0027)
+        except Exception as e:
+            print(f"Error hiding taskbar icon: {e}")
+
 class Api:
     def resize(self, width, height):
         try:
@@ -87,8 +212,11 @@ class Api:
             print(f"Resize error: {e}")
 
     def close(self):
+        global is_window_hidden
         try:
-            webview.windows[0].destroy()
+            if len(webview.windows) > 0:
+                webview.windows[0].hide()
+                is_window_hidden = True
         except Exception as e:
             print(f"Close error: {e}")
 
@@ -131,7 +259,19 @@ class Api:
         return load_config()
 
     def save_config(self, data):
-        return save_config(data)
+        res = save_config(data)
+        if res.get("success") and "hotkey" in data:
+            update_hotkey(data["hotkey"])
+        return res
+
+    def hide_window(self):
+        global is_window_hidden
+        try:
+            if len(webview.windows) > 0:
+                webview.windows[0].hide()
+                is_window_hidden = True
+        except Exception as e:
+            print(f"Hide error: {e}")
 
     def get_history(self):
         return {"history": load_history()}
@@ -210,7 +350,15 @@ def main():
     api = Api()
     entrypoint = get_entrypoint()
 
-    webview.create_window(
+    # Registrar el atajo de teclado
+    config = load_config()
+    update_hotkey(config.get("hotkey", "alt+space"))
+    
+    # Iniciar el tray en un hilo
+    t = threading.Thread(target=setup_tray, daemon=True)
+    t.start()
+
+    window = webview.create_window(
         "ProSearch",
         entrypoint,
         js_api=api,
@@ -222,7 +370,12 @@ def main():
         transparent=True,
         background_color='#18181b',
         easy_drag=False,
+        on_top=True,
     )
+    
+    window.events.closing += on_closing
+    window.events.shown += on_shown
+    
     webview.start(http_server=True)
 
 if __name__ == "__main__":

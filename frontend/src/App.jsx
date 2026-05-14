@@ -37,17 +37,26 @@ function App() {
         window.pywebview?.api?.close?.()
       }
     }
+    const handleBlur = () => {
+      window.pywebview?.api?.hide_window?.()
+    }
+
     window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
+    window.addEventListener('blur', handleBlur)
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+      window.removeEventListener('blur', handleBlur)
+    }
   }, [])
 
   useEffect(() => {
     const handleResearchComplete = (e) => {
       const data = e.detail
-      
+
       // Update history after research completes
       loadHistory()
-      
+
       const newData = {
         id: Date.now(),
         query: currentQueryData?.query || 'Última Búsqueda',
@@ -58,7 +67,7 @@ function App() {
         date: new Date().toISOString(),
         isNew: true
       }
-      
+
       setCurrentQueryData(newData)
       setIsLoading(false)
     }
@@ -136,7 +145,7 @@ function App() {
       if (window.pywebview && window.pywebview.api) {
         if (currentView === 'search') {
           if (isSearchConfigOpen) {
-            window.pywebview.api.resize(710, 490)
+            window.pywebview.api.resize(710, 540)
           } else {
             window.pywebview.api.resize(710, 120)
           }
@@ -163,14 +172,14 @@ function App() {
 
   return (
     <div className="w-full flex justify-center items-center min-h-screen text-zinc-100 font-sans p-4 relative">
-      
+
       {/* Background Drag Region */}
       <div className="absolute inset-0 pywebview-drag-region z-0" />
 
       {/* Error Toast */}
       <AnimatePresence>
         {error && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: -50 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -50 }}
@@ -187,33 +196,33 @@ function App() {
 
       {currentView === 'search' && (
         <div className="relative w-full max-w-2xl mx-auto">
-          <SearchInput 
-            onSubmit={handleSearchSubmit} 
-            onOpenHistory={() => setCurrentView('history')} 
+          <SearchInput
+            onSubmit={handleSearchSubmit}
+            onOpenHistory={() => setCurrentView('history')}
             onToggleSettings={setIsSearchConfigOpen}
             onHistoryImported={loadHistory}
           />
         </div>
       )}
-      
+
       {currentView === 'main' && (
-        <MainView 
-          data={displayData} 
+        <MainView
+          data={displayData}
           onBack={() => {
             setCurrentView('search')
-          }} 
+          }}
           isLoading={isLoading}
         />
       )}
-      
+
       {currentView === 'history' && (
-        <HistoryView 
-          history={history} 
-          onItemClick={handleHistoryClick} 
+        <HistoryView
+          history={history}
+          onItemClick={handleHistoryClick}
           onDelete={handleDeleteHistoryItem}
           onClear={handleClearHistory}
           onExport={handleExportHistory}
-          onBack={() => setCurrentView('search')} 
+          onBack={() => setCurrentView('search')}
         />
       )}
     </div>

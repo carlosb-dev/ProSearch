@@ -10,7 +10,6 @@ from langchain_openai import ChatOpenAI
 from langchain_tavily import TavilySearch
 
 from langgraph.graph import StateGraph, START, END
-from langgraph.checkpoint.memory import MemorySaver
 
 load_dotenv()
 
@@ -56,7 +55,7 @@ async def async_load_url(url: str):
                 
                 return f"Source {url}:\n{content[:2500]}"
     except Exception as e:
-        print(f"❌ Error leyendo {url}: {e}")
+        print(f"[Error] leyendo {url}: {e}")
         return None
 
 def get_llm_context():
@@ -92,7 +91,7 @@ def queries_node(state: ResearchState):
     if not queries:
         queries = [state["query"]]
         
-    print(f"\nGenerando {len(queries)} consultas 🧠")
+    print(f"\nGenerando {len(queries)} consultas")
     return {"queries": queries, "elapsed_time": time.time()}
 
 async def search_node(state : ResearchState):
@@ -106,7 +105,7 @@ async def search_node(state : ResearchState):
         try:
             return await loop.run_in_executor(None, search_tool.invoke, q)
         except Exception as e:
-            print(f"❌ Error buscando '{q}': {e}")
+            print(f"[Error] buscando '{q}': {e}")
             return {'results': []}
 
     tasks = [search_single_query(q) for q in queries]
@@ -120,14 +119,14 @@ async def search_node(state : ResearchState):
                 seen_urls.add(r['url'])
                 urls.append({"url": r['url'], "title": r.get('title', 'Sin título')})
 
-    print(f"\nInvestigando simultáneamente {len(queries)} queries 🔎")
+    print(f"\nInvestigando simultáneamente {len(queries)} queries")
     return {"urls": urls, "elapsed_time": time.time()}
 
 async def read_node(state : ResearchState):
     urls = state["urls"]
     tasks = [async_load_url(source['url']) for source in urls]
     results = await asyncio.gather(*tasks)
-    print(f"\nLeyendo fuentes 🤔")
+    print(f"\nLeyendo fuentes")
     return {"content": [r for r in results if r], "elapsed_time": time.time()}
 
 def summary_node(state: ResearchState):
@@ -151,7 +150,7 @@ def summary_node(state: ResearchState):
     """
 
     response = model.invoke(prompt)
-    print(f"\nAnalizando Datos ⚙️")
+    print(f"\nAnalizando Datos")
     return {"summary": response.content}
 
 # Se elimina el qa_node para simplificar y cumplir con no añadir más fallbacks/bucles.
@@ -168,14 +167,12 @@ builder.add_edge("search", "read")
 builder.add_edge("read", "summary")
 builder.add_edge("summary", END)
 
-memory = MemorySaver()
-app = builder.compile(checkpointer=memory)
+app = builder.compile()
 
 async def run_agent_api(query: str, depth: int, llm_url: str, model_name: str, llm_api_key: str = "local-key"):
     set_model(llm_url, model_name, llm_api_key)
     start_time = time.time()
-    config = {"configurable": {"thread_id": str(time.time())}}
-    final_state = await app.ainvoke({"query": query, "elapsed_time": start_time, "depth": depth}, config)
+    final_state = await app.ainvoke({"query": query, "elapsed_time": start_time, "depth": depth})
     summary = final_state.get("summary", "No se pudo generar el resumen.")
     urls = final_state.get("urls", [])
     
@@ -183,8 +180,8 @@ async def run_agent_api(query: str, depth: int, llm_url: str, model_name: str, l
     elapsed_time = end_time - start_time
     
     print("\n" + "="*50)
-    print(f"📊 ESTADÍSTICAS DE LA CONSULTA")
-    print(f"⏱️  Tiempo total        : {elapsed_time:.2f} segundos")
+    print(f"[ESTADISTICAS DE LA CONSULTA]")
+    print(f"[Tiempo total]      : {elapsed_time:.2f} segundos")
     print("="*50 + "\n")
 
     return {
